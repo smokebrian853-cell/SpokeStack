@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ tool.title }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-950 text-gray-100 font-sans min-h-screen p-6">
+    <div class="max-w-2xl mx-auto">
+        <a href="/" class="text-xs text-gray-500 hover:text-emerald-400 transition">&lt;- Back to all tools</a>
+        
+        <div class="mt-4 border-b border-gray-800 pb-6 mb-6">
+            <span class="text-xs text-emerald-400 font-semibold tracking-wide uppercase">{{ tool.category }}</span>
+            <h1 class="text-2xl font-black text-white mt-1">{{ tool.title }}</h1>
+            <p class="text-gray-400 text-sm mt-2">{{ tool.description }}</p>
+        </div>
+
+        <form id="toolForm" class="space-y-4">
+            <div>
+                <label class="block text-xs font-medium text-gray-300 mb-2">{{ tool.input_label }}</label>
+                <textarea id="rawInput" name="raw_input" rows="6" required 
+                    class="w-full bg-gray-900 border border-gray-800 rounded-xl p-3 text-sm text-gray-100 focus:outline-none focus:border-emerald-500" 
+                    placeholder="Paste your raw text, data, or input parameters here..."></textarea>
+            </div>
+            <button type="submit" id="submitBtn" 
+                class="w-full py-3 bg-emerald-500 hover:bg-emerald-600 font-bold text-gray-950 rounded-xl transition text-sm">
+                Process and Generate Free Preview
+            </button>
+        </form>
+
+        <div id="resultBox" class="hidden mt-6 p-5 bg-gray-900 border border-gray-800 rounded-xl">
+            <h3 class="text-sm font-bold text-emerald-400 mb-2">Processed Output Preview:</h3>
+            <pre id="previewText" class="bg-gray-950 p-3 rounded-lg text-xs text-gray-300 overflow-x-auto mb-4 border border-gray-800"></pre>
+
+            <div class="border-t border-gray-800 pt-4 text-center">
+                <p id="paymentPrompt" class="text-xs text-gray-300 font-medium mb-3"></p>
+                <button onclick="triggerPaystackCheckout()" 
+                    class="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 font-extrabold text-gray-950 rounded-xl transition text-sm shadow-lg">
+                    Unlock Full Clean Export (M-Pesa / Card)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('toolForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            btn.innerText = "Processing...";
+            btn.disabled = true;
+
+            const formData = new FormData();
+            formData.append('raw_input', document.getElementById('rawInput').value);
+
+            const res = await fetch('/api/process/{{ slug }}', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await res.json();
+            btn.innerText = "Process and Generate Free Preview";
+            btn.disabled = false;
+
+            if(data.status === 'success') {
+                document.getElementById('previewText').innerText = data.preview;
+                document.getElementById('paymentPrompt').innerText = data.payment_prompt;
+                document.getElementById('resultBox').classList.remove('hidden');
+            }
+        });
+
+        function triggerPaystackCheckout() {
+            alert('Paystack / M-Pesa Popup Triggered for {{ tool.price_kes }} KES');
+        }
+    </script>
+</body>
+</html>

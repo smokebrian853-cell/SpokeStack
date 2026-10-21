@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cench Inbound Engine | Fast Micro-Utilities</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-950 text-gray-100 font-sans min-h-screen p-6">
+    <div class="max-w-4xl mx-auto">
+        <header class="border-b border-gray-800 pb-4 mb-8">
+            <h1 class="text-3xl font-extrabold text-emerald-400 tracking-tight">CENCH UTILITY ENGINE</h1>
+            <p class="text-gray-400 text-sm mt-1">Instant, high-speed micro-tools & compliance utility tools.</p>
+        </header>
+
+        <main>
+            <h2 class="text-xl font-bold mb-4 text-gray-200">Active Spoke Tools</h2>
+            <div class="grid md:grid-cols-2 gap-4">
+                {% for slug, tool in tools.items() %}
+                <a href="/tool/{{ slug }}" class="block p-5 bg-gray-900 border border-gray-800 rounded-xl hover:border-emerald-500 transition">
+                    <span class="text-xs text-emerald-400 font-semibold tracking-wide uppercase">{{ tool.category }}</span>
+                    <h3 class="text-lg font-bold text-white mt-1">{{ tool.title }}</h3>
+                    <p class="text-gray-400 text-sm mt-2">{{ tool.description }}</p>
+                    <div class="mt-4 flex items-center justify-between">
+                        <span class="text-xs bg-gray-800 text-gray-300 px-2.5 py-1 rounded-md">{{ tool.price_kes }} KES</span>
+                        <span class="text-xs text-emerald-400 font-bold">Launch Tool &rarr;</span>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </main>
+    </div>
+</body>
+</html>
