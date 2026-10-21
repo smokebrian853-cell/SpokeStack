@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 
-app = FastAPI(title="Project Cench - Spoke Engine")
+app = FastAPI(title="SpokeStack - Cench.io Engine")
 templates = Jinja2Templates(directory="templates")
 
 BANNED_ZERO_INTENT = ["free", "crack", "open source", "diy", "github", "torrent", "pirate"]
@@ -33,14 +33,14 @@ SPOKE_REGISTRY = {
 
 @app.get("/", response_class=HTMLResponse)
 async def home_river(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request, "tools": SPOKE_REGISTRY})
+    return templates.TemplateResponse(request, "index.html", {"tools": SPOKE_REGISTRY})
 
 @app.get("/tool/{slug}", response_class=HTMLResponse)
 async def render_spoke_page(request: Request, slug: str):
     tool = SPOKE_REGISTRY.get(slug)
     if not tool:
         raise HTTPException(status_code=404, detail="Spoke tool not found.")
-    return templates.TemplateResponse("spoke_tool.html", {"request": request, "slug": slug, "tool": tool})
+    return templates.TemplateResponse(request, "spoke_tool.html", {"slug": slug, "tool": tool})
 
 @app.post("/api/process/{slug}")
 async def process_user_data(slug: str, raw_input: str = Form(...)):
