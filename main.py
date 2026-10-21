@@ -1,3 +1,5 @@
+import os
+import httpx
 from fastapi import FastAPI, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
@@ -5,29 +7,23 @@ from fastapi.templating import Jinja2Templates
 app = FastAPI(title="SpokeStack - Cench.io Engine")
 templates = Jinja2Templates(directory="templates")
 
-BANNED_ZERO_INTENT = ["free", "crack", "open source", "diy", "github", "torrent", "pirate"]
+PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY", "sk_test_placeholder")
 
 SPOKE_REGISTRY = {
     "cheap-mpesa-statement-converter": {
         "title": "Cheap & Fast Bulk M-Pesa PDF to CSV Converter",
         "category": "Financial Utility",
-        "description": "Convert messy M-Pesa till/paybill PDF statements into clean Excel spreadsheets instantly.",
         "price_kes": 150,
-        "input_label": "Paste Raw M-Pesa Text or Upload Data"
     },
     "instant-etims-receipt-formatter": {
         "title": "Instant KRA eTIMS Compliant Tax Receipt Generator",
         "category": "Compliance Utility",
-        "description": "Format clean, tax-compliant invoice payloads for local businesses in seconds.",
         "price_kes": 200,
-        "input_label": "Enter Transaction Details"
     },
     "quick-phone-number-validator": {
         "title": "Quick Bulk Phone Number & WhatsApp Line Checker",
         "category": "Outreach Utility",
-        "description": "Filter out dead numbers and verify active WhatsApp business lines instantly.",
         "price_kes": 250,
-        "input_label": "Paste Phone Numbers (One per line)"
     }
 }
 
@@ -42,20 +38,45 @@ async def render_spoke_page(request: Request, slug: str):
         raise HTTPException(status_code=404, detail="Spoke tool not found.")
     return templates.TemplateResponse(request, "spoke_tool.html", {"slug": slug, "tool": tool})
 
-@app.post("/api/process/{slug}")
-async def process_user_data(slug: str, raw_input: str = Form(...)):
+@app.post("/api/pay/{slug}")
+async def initiate_paystack_stk(slug: str, phone_number: str = Form(...), email: str = Form(...)):
+    """Triggers live M-Pesa STK push via Paystack Charge API."""
     tool = SPOKE_REGISTRY.get(slug)
     if not tool:
-        return JSONResponse({"status": "error", "message": "Invalid tool spoke."}, status_code=400)
-    if not raw_input.strip():
-        return JSONResponse({"status": "error", "message": "Input cannot be empty."}, status_code=400)
+        return JSONResponse({"status": "error", "message": "Invalid tool."}, status_code=400)
 
-    lines = raw_input.strip().split("\n")
-    preview_snippet = f"Successfully processed {len(lines)} rows.\nPreview item 1: {lines[0][:40]}...\n[FULL FILE LOCKED]"
+    # Format Kenyan phone number for Paystack (+254...)
+    clean_phone = phone_number.strip().replace("+", "")
+    if clean_phone.startswith("0"):
+        clean_phone = "254" + clean_phone[1:]
 
-    return {
-        "status": "success",
-        "preview": preview_snippet,
-        "price_kes": tool["price_kes"],
-        "payment_prompt": f"Pay {tool['price_kes']} KES via M-Pesa / Airtel / Card to download full clean file."
+    payload = {
+        "amount": tool["price_kes"] * 100,  # Paystack expects amount in KES cents
+        "email": email.strip(),
+        "currency": "KES",
+        "mobile_money": {
+            "phone": clean_phone,
+            "provider": "mpesa"
+        }
     }
+
+    headers = {
+        "Authorization": f"Bearer {PAYSTACK_SECRET_KEY}",
+        "Content-Type": "application/json"
+    }
+
+    async with httpx.AsyncClient() as client:
+        response = await client.post("https://api.paystack.co/charge", json=payload, headers=headers)
+        res_data = response.json()
+
+    if response.status_code == 200 and res_data.get("status"):
+        return JSONResponse({
+            "status": "success",
+            "message": "STK Push sent to your phone! Complete payment to unlock full download.",
+            "reference": res_data["data"]["reference"]
+        })
+    else:
+        return JSONResponse({
+            "status": "error",
+            "message": res_data.get("message", "Payment initiation failed.")
+        }, status_code=400)
