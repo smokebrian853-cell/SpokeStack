@@ -1,3 +1,58 @@
+import os
+import httpx
+from typing import Optional
+from fastapi import FastAPI, Request, Form, File, UploadFile, HTTPException
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.templating import Jinja2Templates
+
+# ==========================================
+# 1. INITIALIZE APP FIRST (BEFORE ANY @app)
+# ==========================================
+app = FastAPI(title="SpokeStack - Cench.io Engine")
+
+# 2. Setup templates
+templates = Jinja2Templates(directory="templates")
+
+# 3. Read environment variable
+PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY", "sk_test_placeholder")
+
+# 4. Spoke Registry
+SPOKE_REGISTRY = {
+    "cheap-mpesa-statement-converter": {
+        "title": "Cheap & Fast Bulk M-Pesa PDF to CSV Converter",
+        "category": "Financial Utility",
+        "price_kes": 150,
+        "description": "Convert password-protected Safaricom M-Pesa PDFs directly into clean Excel/CSV files in seconds."
+    },
+    "instant-etims-receipt-formatter": {
+        "title": "Instant KRA eTIMS Compliant Tax Receipt Generator",
+        "category": "Compliance Utility",
+        "price_kes": 200,
+        "description": "Format raw transaction payloads into KRA eTIMS compliant tax invoice receipts instantly."
+    },
+    "quick-phone-number-validator": {
+        "title": "Quick Bulk Phone Number & WhatsApp Line Checker",
+        "category": "Outreach Utility",
+        "price_kes": 250,
+        "description": "Clean bulk phone lists and verify active WhatsApp lines before running SMS/WhatsApp campaigns."
+    }
+}
+
+# ==========================================
+# 5. NOW PLACE ALL YOUR @app.get AND @app.post ROUTES BELOW HERE
+# ==========================================
+
+@app.get("/", response_class=HTMLResponse)
+async def home_river(request: Request):
+    return templates.TemplateResponse(request, "index.html", {"tools": SPOKE_REGISTRY})
+
+@app.get("/tool/{slug}", response_class=HTMLResponse)
+async def render_spoke_page(request: Request, slug: str):
+    tool = SPOKE_REGISTRY.get(slug)
+    if not tool:
+        raise HTTPException(status_code=404, detail="Spoke tool not found.")
+    return templates.TemplateResponse(request, "spoke_tool.html", {"slug": slug, "tool": tool})
+
 @app.post("/api/pay/{slug}")
 async def initiate_paystack_stk(
     slug: str, 
@@ -13,7 +68,7 @@ async def initiate_paystack_stk(
     if not raw_data and not (uploaded_file and uploaded_file.filename):
         return JSONResponse({"status": "error", "message": "Please paste data or upload a file first."}, status_code=400)
 
-    # 1. Clean and format Kenyan Phone Number (+254...)
+    # Format Kenyan Phone Number (+254...)
     raw_phone = phone_number.strip().replace(" ", "").replace("-", "")
     if raw_phone.startswith("0"):
         clean_phone = "+254" + raw_phone[1:]
@@ -24,9 +79,8 @@ async def initiate_paystack_stk(
     else:
         clean_phone = raw_phone
 
-    # 2. Build Paystack Charge Payload
     payload = {
-        "amount": tool["price_kes"] * 100,  # KES to cents
+        "amount": tool["price_kes"] * 100,
         "email": email.strip(),
         "currency": "KES",
         "mobile_money": {
@@ -53,5 +107,5 @@ async def initiate_paystack_stk(
     else:
         return JSONResponse({
             "status": "error",
-            "message": res_data.get("message", "Payment failed. Please check your phone number.")
+            "message": res_data.get("message", "Payment failed. Please check phone number.")
         }, status_code=400)
