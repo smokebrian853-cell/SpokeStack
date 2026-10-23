@@ -1,111 +1,99 @@
 import os
 import httpx
-from typing import Optional
-from fastapi import FastAPI, Request, Form, File, UploadFile, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.templating import Jinja2Templates
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
-# ==========================================
-# 1. INITIALIZE APP FIRST (BEFORE ANY @app)
-# ==========================================
-app = FastAPI(title="SpokeStack - Cench.io Engine")
+app = FastAPI(
+    title="SpokeStack Kenya - SME Automated Tool Suite",
+    description="M-Pesa Statement Converter, KRA eTIMS Formatter, and Bulk Phone Validator",
+    version="1.0.0"
+)
 
-# 2. Setup templates
-templates = Jinja2Templates(directory="templates")
+# CORS Setup
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-# 3. Read environment variable
-PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY", "sk_test_placeholder")
+# Mount static files if present
+if os.path.exists("static"):
+    app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# 4. Spoke Registry
-SPOKE_REGISTRY = {
-    "cheap-mpesa-statement-converter": {
-        "title": "Cheap & Fast Bulk M-Pesa PDF to CSV Converter",
-        "category": "Financial Utility",
-        "price_kes": 150,
-        "description": "Convert password-protected Safaricom M-Pesa PDFs directly into clean Excel/CSV files in seconds."
-    },
-    "instant-etims-receipt-formatter": {
-        "title": "Instant KRA eTIMS Compliant Tax Receipt Generator",
-        "category": "Compliance Utility",
-        "price_kes": 200,
-        "description": "Format raw transaction payloads into KRA eTIMS compliant tax invoice receipts instantly."
-    },
-    "quick-phone-number-validator": {
-        "title": "Quick Bulk Phone Number & WhatsApp Line Checker",
-        "category": "Outreach Utility",
-        "price_kes": 250,
-        "description": "Clean bulk phone lists and verify active WhatsApp lines before running SMS/WhatsApp campaigns."
-    }
-}
-
-# ==========================================
-# 5. NOW PLACE ALL YOUR @app.get AND @app.post ROUTES BELOW HERE
-# ==========================================
+# -------------------------------------------------------------------
+# Core Routes
+# -------------------------------------------------------------------
 
 @app.get("/", response_class=HTMLResponse)
-async def home_river(request: Request):
-    return templates.TemplateResponse(request, "index.html", {"tools": SPOKE_REGISTRY})
+async def home():
+    return """
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>SpokeStack Kenya | Automated SME Tools</title>
+        <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; line-height: 1.6; color: #111827; }
+            h1 { color: #059669; }
+            .tool-card { border: 1px solid #E5E7EB; padding: 20px; border-radius: 8px; margin-bottom: 20px; background: #F9FAFB; }
+            .price { font-weight: bold; color: #059669; }
+            a { color: #2563EB; text-decoration: none; font-weight: 600; }
+            a:hover { text-decoration: underline; }
+        </style>
+    </head>
+    <body>
+        <h1>SpokeStack Kenya</h1>
+        <p>Instant browser-based utilities for accountants, cyber cafes, and small businesses.</p>
+        
+        <div class="tool-card">
+            <h3>1. M-Pesa Statement Converter <span class="price">(KES 150)</span></h3>
+            <p>Convert Safaricom M-Pesa PDF statements to clean Excel (.xlsx) / CSV spreadsheets instantly.</p>
+            <a href="/tool/cheap-mpesa-statement-converter">Launch Tool &rarr;</a>
+        </div>
 
-@app.get("/tool/{slug}", response_class=HTMLResponse)
-async def render_spoke_page(request: Request, slug: str):
-    tool = SPOKE_REGISTRY.get(slug)
-    if not tool:
-        raise HTTPException(status_code=404, detail="Spoke tool not found.")
-    return templates.TemplateResponse(request, "spoke_tool.html", {"slug": slug, "tool": tool})
+        <div class="tool-card">
+            <h3>2. Instant eTIMS Receipt Formatter <span class="price">(KES 200)</span></h3>
+            <p>Format line items and vendor receipts into KRA-compliant eTIMS expense summaries.</p>
+            <a href="/tool/instant-etims-receipt-formatter">Launch Tool &rarr;</a>
+        </div>
 
-@app.post("/api/pay/{slug}")
-async def initiate_paystack_stk(
-    slug: str, 
-    phone_number: str = Form(...), 
-    email: str = Form(...),
-    raw_data: Optional[str] = Form(None),
-    uploaded_file: Optional[UploadFile] = File(None)
-):
-    tool = SPOKE_REGISTRY.get(slug)
-    if not tool:
-        return JSONResponse({"status": "error", "message": "Invalid tool selection."}, status_code=400)
+        <div class="tool-card">
+            <h3>3. Quick Phone Number Validator <span class="price">(KES 250)</span></h3>
+            <p>Clean bulk customer contact lists (0712 vs 2547) for M-Pesa STK payouts and WhatsApp campaigns.</p>
+            <a href="/tool/quick-phone-number-validator">Launch Tool &rarr;</a>
+        </div>
+    </body>
+    </html>
+    """
 
-    if not raw_data and not (uploaded_file and uploaded_file.filename):
-        return JSONResponse({"status": "error", "message": "Please paste data or upload a file first."}, status_code=400)
+# Tool Path Handlers
+@app.get("/tool/cheap-mpesa-statement-converter", response_class=HTMLResponse)
+async def mpesa_tool():
+    return "<h1>M-Pesa Statement Converter (KES 150)</h1><p>Upload your PDF statement to convert to Excel.</p>"
 
-    # Format Kenyan Phone Number (+254...)
-    raw_phone = phone_number.strip().replace(" ", "").replace("-", "")
-    if raw_phone.startswith("0"):
-        clean_phone = "+254" + raw_phone[1:]
-    elif raw_phone.startswith("254"):
-        clean_phone = "+" + raw_phone
-    elif not raw_phone.startswith("+"):
-        clean_phone = "+" + raw_phone
-    else:
-        clean_phone = raw_phone
+@app.get("/tool/instant-etims-receipt-formatter", response_class=HTMLResponse)
+async def etims_tool():
+    return "<h1>Instant eTIMS Formatter (KES 200)</h1><p>Format transaction lines for KRA compliance.</p>"
 
-    payload = {
-        "amount": tool["price_kes"] * 100,
-        "email": email.strip(),
-        "currency": "KES",
-        "mobile_money": {
-            "phone": clean_phone,
-            "provider": "mpesa"
-        }
-    }
+@app.get("/tool/quick-phone-number-validator", response_class=HTMLResponse)
+async def phone_tool():
+    return "<h1>Phone Number Validator (KES 250)</h1><p>Validate and clean bulk contact lists.</p>"
 
-    headers = {
-        "Authorization": f"Bearer {PAYSTACK_SECRET_KEY}",
-        "Content-Type": "application/json"
-    }
+# Health Check
+@app.get("/health")
+async def health():
+    return {"status": "ok", "app": "SpokeStack"}
 
-    async with httpx.AsyncClient() as client:
-        response = await client.post("https://api.paystack.co/charge", json=payload, headers=headers)
-        res_data = response.json()
+# -------------------------------------------------------------------
+# Google Search Console Verification Route
+# -------------------------------------------------------------------
 
-    if response.status_code == 200 and res_data.get("status"):
-        return JSONResponse({
-            "status": "success",
-            "message": "STK Push sent to your phone! Enter PIN to process.",
-            "reference": res_data["data"]["reference"]
-        })
-    else:
-        return JSONResponse({
-            "status": "error",
-            "message": res_data.get("message", "Payment failed. Please check phone number.")
-        }, status_code=400)
+@app.get("/googleb6c685259aeb3a9f.html", response_class=PlainTextResponse)
+def google_verification():
+    return "google-site-verification: googleb6c685259aeb3a9f.html"
