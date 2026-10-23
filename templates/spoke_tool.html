@@ -1,45 +1,87 @@
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    const toolForm = document.getElementById('toolForm');
-    if (!toolForm) return;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ tool.title }} - SpokeStack</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 text-gray-900 font-sans min-h-screen flex flex-col items-center justify-center p-4">
 
-    toolForm.addEventListener('submit', async (e) => {
-        e.preventDefault(); // STOPS browser from going to the white JSON page
+    <div class="max-w-xl w-full bg-white shadow-md rounded-xl p-6 border border-gray-100">
+        <a href="/" class="text-xs font-semibold text-blue-600 hover:underline mb-4 inline-block">&larr; Back to Tools</a>
         
-        const submitBtn = document.getElementById('submitBtn');
-        const statusBox = document.getElementById('statusBox');
-        const slug = "{{ slug }}";
-        
-        // UI Loading state
-        submitBtn.innerText = "Sending STK Push...";
-        submitBtn.disabled = true;
-        statusBox.className = "mb-4 p-4 rounded-lg text-sm font-medium bg-blue-100 text-blue-800 border border-blue-300 block";
-        statusBox.innerHTML = "⌛ Initializing M-Pesa transaction... Check your phone screen!";
+        <h1 class="text-2xl font-bold mb-2">{{ tool.title }}</h1>
+        <p class="text-gray-600 text-sm mb-6">{{ tool.description }}</p>
 
-        const formData = new FormData(toolForm);
+        <!-- Status Alert Box -->
+        <div id="statusBox" class="hidden mb-4 p-4 rounded-lg text-sm font-medium"></div>
 
-        try {
-            const response = await fetch(`/api/pay/${slug}`, {
-                method: 'POST',
-                body: formData
-            });
+        <form id="toolForm" class="space-y-4">
+            <div>
+                <label class="block text-xs font-bold uppercase text-gray-700 mb-1">Paste Raw Data</label>
+                <textarea name="raw_data" rows="5" class="w-full p-3 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 font-mono" placeholder="Paste your raw data here..."></textarea>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold uppercase text-gray-700 mb-1">Email Address</label>
+                <input type="email" name="email" required class="w-full p-3 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500" placeholder="yourname@gmail.com">
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold uppercase text-gray-700 mb-1">M-Pesa Phone Number</label>
+                <input type="tel" name="phone_number" required class="w-full p-3 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500" placeholder="0712345678">
+            </div>
+
+            <button type="submit" id="submitBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg text-sm transition">
+                Pay KES {{ tool.price_kes }} & Convert
+            </button>
+        </form>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const toolForm = document.getElementById('toolForm');
+        if (!toolForm) return;
+
+        toolForm.addEventListener('submit', async (e) => {
+            e.preventDefault(); // Keeps user on the page instead of opening white text
             
-            const data = await response.json();
+            const submitBtn = document.getElementById('submitBtn');
+            const statusBox = document.getElementById('statusBox');
+            const slug = "{{ slug }}";
             
-            if (response.ok && data.status === 'success') {
-                statusBox.className = "mb-4 p-4 rounded-lg text-sm font-medium bg-green-100 text-green-800 border border-green-300 block";
-                statusBox.innerHTML = `<strong>✅ STK Push Sent!</strong><br>${data.message}<br><span class="text-xs text-gray-600">Ref: ${data.reference}</span>`;
-            } else {
+            submitBtn.innerText = "Sending STK Push...";
+            submitBtn.disabled = true;
+            statusBox.className = "mb-4 p-4 rounded-lg text-sm font-medium bg-blue-100 text-blue-800 border border-blue-300 block";
+            statusBox.innerHTML = "⌛ Sending M-Pesa prompt... Check your phone screen!";
+
+            const formData = new FormData(toolForm);
+
+            try {
+                const response = await fetch(`/api/pay/${slug}`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.status === 'success') {
+                    statusBox.className = "mb-4 p-4 rounded-lg text-sm font-medium bg-green-100 text-green-800 border border-green-300 block";
+                    statusBox.innerHTML = `<strong>✅ STK Push Sent!</strong><br>${data.message}<br><span class="text-xs text-gray-600">Ref: ${data.reference}</span>`;
+                } else {
+                    statusBox.className = "mb-4 p-4 rounded-lg text-sm font-medium bg-red-100 text-red-800 border border-red-300 block";
+                    statusBox.innerHTML = `<strong>⚠️ Error:</strong> ${data.message || 'Payment request failed.'}`;
+                }
+            } catch (err) {
                 statusBox.className = "mb-4 p-4 rounded-lg text-sm font-medium bg-red-100 text-red-800 border border-red-300 block";
-                statusBox.innerHTML = `<strong>⚠️ Payment Error:</strong> ${data.message || 'Check phone number and try again.'}`;
+                statusBox.innerHTML = "<strong>⚠️ Server Error:</strong> Could not reach SpokeStack engine.";
+            } finally {
+                submitBtn.innerText = "Pay KES {{ tool.price_kes }} & Convert";
+                submitBtn.disabled = false;
             }
-        } catch (err) {
-            statusBox.className = "mb-4 p-4 rounded-lg text-sm font-medium bg-red-100 text-red-800 border border-red-300 block";
-            statusBox.innerHTML = "<strong>⚠️ Server Error:</strong> Could not reach SpokeStack engine.";
-        } finally {
-            submitBtn.innerText = "Pay & Convert";
-            submitBtn.disabled = false;
-        }
+        });
     });
-});
-</script>
+    </script>
+</body>
+</html>
