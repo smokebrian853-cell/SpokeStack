@@ -1,16 +1,15 @@
 import os
 import httpx
-from fastapi import FastAPI, Request, Form, HTTPException
+from typing import Optional
+from fastapi import FastAPI, Request, Form, File, UploadFile, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 
 app = FastAPI(title="SpokeStack - Cench.io Engine")
 templates = Jinja2Templates(directory="templates")
 
-# Reads key securely from Render Environment Variables
 PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY", "sk_test_placeholder")
 
-# All 3 SpokeStack Tools Registered in One Place
 SPOKE_REGISTRY = {
     "cheap-mpesa-statement-converter": {
         "title": "Cheap & Fast Bulk M-Pesa PDF to CSV Converter",
@@ -34,31 +33,39 @@ SPOKE_REGISTRY = {
 
 @app.get("/", response_class=HTMLResponse)
 async def home_river(request: Request):
-    """Lists all 3 live tools on the homepage."""
     return templates.TemplateResponse(request, "index.html", {"tools": SPOKE_REGISTRY})
 
 @app.get("/tool/{slug}", response_class=HTMLResponse)
 async def render_spoke_page(request: Request, slug: str):
-    """Renders the specific tool page dynamically."""
     tool = SPOKE_REGISTRY.get(slug)
     if not tool:
         raise HTTPException(status_code=404, detail="Spoke tool not found.")
     return templates.TemplateResponse(request, "spoke_tool.html", {"slug": slug, "tool": tool})
 
 @app.post("/api/pay/{slug}")
-async def initiate_paystack_stk(slug: str, phone_number: str = Form(...), email: str = Form(...)):
-    """Triggers M-Pesa STK Push directly to customer phone via Paystack."""
+async def initiate_paystack_stk(
+    slug: str, 
+    phone_number: str = Form(...), 
+    email: str = Form(...),
+    raw_data: Optional[str] = Form(None),
+    uploaded_file: Optional[UploadFile] = File(None)
+):
+    """Processes raw textarea data / file uploads, then triggers Paystack STK Push."""
     tool = SPOKE_REGISTRY.get(slug)
     if not tool:
         return JSONResponse({"status": "error", "message": "Invalid tool selection."}, status_code=400)
 
-    # Format Kenyan Phone Number (+254...)
+    # Make sure user provided either text input or an uploaded file
+    if not raw_data and not (uploaded_file and uploaded_file.filename):
+        return JSONResponse({"status": "error", "message": "Please paste data or upload a file first."}, status_code=400)
+
+    # Format Kenyan phone number for Paystack (+254...)
     clean_phone = phone_number.strip().replace("+", "")
     if clean_phone.startswith("0"):
         clean_phone = "254" + clean_phone[1:]
 
     payload = {
-        "amount": tool["price_kes"] * 100,  # Convert KES to cents
+        "amount": tool["price_kes"] * 100,  # KES to cents
         "email": email.strip(),
         "currency": "KES",
         "mobile_money": {
@@ -79,11 +86,11 @@ async def initiate_paystack_stk(slug: str, phone_number: str = Form(...), email:
     if response.status_code == 200 and res_data.get("status"):
         return JSONResponse({
             "status": "success",
-            "message": "STK Push sent! Enter your M-Pesa PIN on your phone to unlock download.",
+            "message": "STK Push sent to your phone! Enter PIN to process and receive output.",
             "reference": res_data["data"]["reference"]
         })
     else:
         return JSONResponse({
             "status": "error",
-            "message": res_data.get("message", "Failed to send STK Push. Try again.")
+            "message": res_data.get("message", "Payment initiation failed. Please check phone number.")
         }, status_code=400)
