@@ -1,39 +1,45 @@
 <script>
-document.getElementById('toolForm').addEventListener('submit', async (e) => {
-    e.preventDefault(); // Prevents browser from navigating to the white raw JSON page
-    
-    const submitBtn = document.getElementById('submitBtn');
-    const statusBox = document.getElementById('statusBox');
-    
-    submitBtn.innerText = "Processing Payment...";
-    submitBtn.disabled = true;
-    
-    const formData = new FormData(e.target);
-    const slug = "{{ slug }}";
+document.addEventListener('DOMContentLoaded', () => {
+    const toolForm = document.getElementById('toolForm');
+    if (!toolForm) return;
 
-    try {
-        const response = await fetch(`/api/pay/${slug}`, {
-            method: 'POST',
-            body: formData
-        });
+    toolForm.addEventListener('submit', async (e) => {
+        e.preventDefault(); // STOPS browser from going to the white JSON page
         
-        const data = await response.json();
+        const submitBtn = document.getElementById('submitBtn');
+        const statusBox = document.getElementById('statusBox');
+        const slug = "{{ slug }}";
         
-        statusBox.style.display = 'block';
-        if (data.status === 'success') {
-            statusBox.className = 'p-4 rounded-lg bg-green-100 text-green-800 border border-green-300';
-            statusBox.innerHTML = `<strong>Success!</strong> ${data.message} <br><small>Ref: ${data.reference}</small>`;
-        } else {
-            statusBox.className = 'p-4 rounded-lg bg-red-100 text-red-800 border border-red-300';
-            statusBox.innerHTML = `<strong>Error:</strong> ${data.message}`;
+        // UI Loading state
+        submitBtn.innerText = "Sending STK Push...";
+        submitBtn.disabled = true;
+        statusBox.className = "mb-4 p-4 rounded-lg text-sm font-medium bg-blue-100 text-blue-800 border border-blue-300 block";
+        statusBox.innerHTML = "⌛ Initializing M-Pesa transaction... Check your phone screen!";
+
+        const formData = new FormData(toolForm);
+
+        try {
+            const response = await fetch(`/api/pay/${slug}`, {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok && data.status === 'success') {
+                statusBox.className = "mb-4 p-4 rounded-lg text-sm font-medium bg-green-100 text-green-800 border border-green-300 block";
+                statusBox.innerHTML = `<strong>✅ STK Push Sent!</strong><br>${data.message}<br><span class="text-xs text-gray-600">Ref: ${data.reference}</span>`;
+            } else {
+                statusBox.className = "mb-4 p-4 rounded-lg text-sm font-medium bg-red-100 text-red-800 border border-red-300 block";
+                statusBox.innerHTML = `<strong>⚠️ Payment Error:</strong> ${data.message || 'Check phone number and try again.'}`;
+            }
+        } catch (err) {
+            statusBox.className = "mb-4 p-4 rounded-lg text-sm font-medium bg-red-100 text-red-800 border border-red-300 block";
+            statusBox.innerHTML = "<strong>⚠️ Server Error:</strong> Could not reach SpokeStack engine.";
+        } finally {
+            submitBtn.innerText = "Pay & Convert";
+            submitBtn.disabled = false;
         }
-    } catch (err) {
-        statusBox.style.display = 'block';
-        statusBox.className = 'p-4 rounded-lg bg-red-100 text-red-800 border border-red-300';
-        statusBox.innerHTML = '<strong>Error:</strong> Failed to connect to server. Check network connection.';
-    } finally {
-        submitBtn.innerText = "Pay & Convert";
-        submitBtn.disabled = false;
-    }
+    });
 });
 </script>
