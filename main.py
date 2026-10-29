@@ -1,93 +1,151 @@
 import os
 import httpx
 from typing import Optional
-from fastapi import FastAPI, Request, Form, File, UploadFile, HTTPException
+from fastapi import FastAPI, Request, Form, File, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
-from fastapi.templating import Jinja2Templates
 
-# ==========================================
-# 1. INITIALIZE APP FIRST (BEFORE ANY @app)
-# ==========================================
-app = FastAPI(title="SpokeStack - Cench.io Engine")
+app = FastAPI(title="SpokeStack - Autonomous 24/7 Engine")
 
-# 2. Setup templates
-templates = Jinja2Templates(directory="templates")
+# Fetch your Paystack Live Secret Key securely from Render environment variables
+PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY", "sk_live_placeholder")
 
-# 3. Read environment variable
-PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY", "sk_test_placeholder")
-
-# 4. Spoke Registry
-SPOKE_REGISTRY = {
-    "cheap-mpesa-statement-converter": {
-        "title": "Cheap & Fast Bulk M-Pesa PDF to CSV Converter",
-        "category": "Financial Utility",
+# Tool Registry with Local (KES) and International (USD) Layers
+TOOLS = {
+    "mpesa-converter": {
+        "name": "M-Pesa Statement PDF to CSV Converter",
         "price_kes": 150,
-        "description": "Convert password-protected Safaricom M-Pesa PDFs directly into clean Excel/CSV files in seconds."
+        "price_usd": 2,
+        "desc": "Extract password-protected Safaricom PDFs into clean Excel files instantly."
     },
-    "instant-etims-receipt-formatter": {
-        "title": "Instant KRA eTIMS Compliant Tax Receipt Generator",
-        "category": "Compliance Utility",
+    "etims-formatter": {
+        "name": "KRA eTIMS Tax Receipt Formatter",
         "price_kes": 200,
-        "description": "Format raw transaction payloads into KRA eTIMS compliant tax invoice receipts instantly."
+        "price_usd": 3,
+        "desc": "Format raw expenses into KRA-compliant digital invoice payloads."
     },
-    "quick-phone-number-validator": {
-        "title": "Quick Bulk Phone Number & WhatsApp Line Checker",
-        "category": "Outreach Utility",
+    "phone-validator": {
+        "name": "Bulk WhatsApp & Phone Line Cleaner",
         "price_kes": 250,
-        "description": "Clean bulk phone lists and verify active WhatsApp lines before running SMS/WhatsApp campaigns."
+        "price_usd": 3.50,
+        "desc": "Verify active Safaricom lines and clean phone lists for marketing."
     }
 }
 
-# ==========================================
-# 5. NOW PLACE ALL YOUR @app.get AND @app.post ROUTES BELOW HERE
-# ==========================================
+# 1. Google Search Console Verification (Hardcoded, never drops)
+@app.get("/googleb6c685259aeb3a9f.html", response_class=PlainTextResponse)
+def google_verify():
+    return "google-site-verification: googleb6c685259aeb3a9f.html"
 
+# 2. Autonomous 24/7 Responsive UI (Zero Lag, Zero Auto-Reloads)
 @app.get("/", response_class=HTMLResponse)
-async def home_river(request: Request):
-    return templates.TemplateResponse(request, "index.html", {"tools": SPOKE_REGISTRY})
+def home():
+    return """
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>SpokeStack - Instant Business & Tax Utilities</title>
+        <style>
+            body { background: #07090e; color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 16px; margin: 0; }
+            .container { max-width: 600px; margin: 0 auto; }
+            header { text-align: center; padding: 20px 0; }
+            h1 { font-size: 1.5rem; color: #38bdf8; margin-bottom: 5px; }
+            p.sub { color: #94a3b8; font-size: 0.9rem; }
+            .card { background: #111827; border: 1px: #1f2937; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+            h3 { margin-top: 0; color: #f8fafc; font-size: 1.1rem; }
+            .desc { color: #94a3b8; font-size: 0.85rem; margin-bottom: 15px; }
+            label { font-size: 0.8rem; color: #cbd5e1; display: block; margin-top: 8px; }
+            input, select { width: 100%; padding: 10px; margin-top: 4px; border-radius: 6px; border: 1px solid #374151; background: #1f2937; color: #fff; box-sizing: border-box; font-size: 0.9rem; }
+            .btn { background: #059669; color: #fff; padding: 12px; border: none; border-radius: 6px; font-weight: bold; width: 100%; margin-top: 15px; cursor: pointer; font-size: 0.95ln; }
+            .btn:hover { background: #047857; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <header>
+                <h1>SpokeStack Cloud Utilities</h1>
+                <p class="sub">Automated financial document formatting & validation</p>
+            </header>
 
-@app.get("/tool/{slug}", response_class=HTMLResponse)
-async def render_spoke_page(request: Request, slug: str):
-    tool = SPOKE_REGISTRY.get(slug)
-    if not tool:
-        raise HTTPException(status_code=404, detail="Spoke tool not found.")
-    return templates.TemplateResponse(request, "spoke_tool.html", {"slug": slug, "tool": tool})
+            <div class="card">
+                <h3>M-Pesa Statement to CSV</h3>
+                <p class="desc">KES 150 / USD 2 — Converts locked Safaricom statements into Excel.</p>
+                <form action="/pay/mpesa-converter" method="POST" enctype="multipart/form-data">
+                    <label>Currency & Payment Method</label>
+                    <select name="currency">
+                        <option value="KES">M-Pesa (KES 150)</option>
+                        <option value="USD">International Card (USD $2)</option>
+                    </select>
+                    <label>Your Phone / WhatsApp (for M-Pesa STK push)</label>
+                    <input type="text" name="phone" placeholder="07XX or +254XX" required>
+                    <label>Email Address</label>
+                    <input type="email" name="email" placeholder="name@example.com" required>
+                    <label>Upload Protected PDF Statement</label>
+                    <input type="file" name="file" required>
+                    <button type="submit" class="btn">Proceed & Pay via Paystack</button>
+                </form>
+            </div>
 
-@app.post("/api/pay/{slug}")
-async def initiate_paystack_stk(
+            <div class="card">
+                <h3>KRA eTIMS Receipt Formatter</h3>
+                <p class="desc">KES 200 / USD 3 — Instant expense payload structuring.</p>
+                <form action="/pay/etims-formatter" method="POST">
+                    <label>Currency & Payment Method</label>
+                    <select name="currency">
+                        <option value="KES">M-Pesa (KES 200)</option>
+                        <option value="USD">International Card (USD $3)</option>
+                    </select>
+                    <label>Your Phone / WhatsApp</label>
+                    <input type="text" name="phone" placeholder="07XX or +254XX" required>
+                    <label>Email Address</label>
+                    <input type="email" name="email" placeholder="name@example.com" required>
+                    <label>Paste Raw Transaction Text</label>
+                    <input type="text" name="raw_data" placeholder="Paste line items here..." required>
+                    <button type="submit" class="btn">Proceed & Pay via Paystack</button>
+                </form>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+# 3. Secure Backend Payment Gateway Processor
+@app.post("/pay/{slug}")
+async def process_payment(
     slug: str, 
-    phone_number: str = Form(...), 
-    email: str = Form(...),
-    raw_data: Optional[str] = Form(None),
-    uploaded_file: Optional[UploadFile] = File(None)
+    currency: str = Form("KES"),
+    phone: str = Form(...), 
+    email: str = Form(...), 
+    file: Optional[UploadFile] = File(None),
+    raw_data: Optional[str] = Form(None)
 ):
-    tool = SPOKE_REGISTRY.get(slug)
+    tool = TOOLS.get(slug)
     if not tool:
-        return JSONResponse({"status": "error", "message": "Invalid tool selection."}, status_code=400)
+        return JSONResponse({"status": "error", "message": "Invalid utility tool selected."}, status_code=400)
 
-    if not raw_data and not (uploaded_file and uploaded_file.filename):
-        return JSONResponse({"status": "error", "message": "Please paste data or upload a file first."}, status_code=400)
-
-    # Format Kenyan Phone Number (+254...)
-    raw_phone = phone_number.strip().replace(" ", "").replace("-", "")
-    if raw_phone.startswith("0"):
-        clean_phone = "+254" + raw_phone[1:]
-    elif raw_phone.startswith("254"):
-        clean_phone = "+" + raw_phone
-    elif not raw_phone.startswith("+"):
-        clean_phone = "+" + raw_phone
-    else:
-        clean_phone = raw_phone
+    curr = currency.upper()
+    amount = (tool["price_usd"] * 100) if curr == "USD" else (tool["price_kes"] * 100)
 
     payload = {
-        "amount": tool["price_kes"] * 100,
+        "amount": amount,
         "email": email.strip(),
-        "currency": "KES",
-        "mobile_money": {
+        "currency": curr
+    }
+
+    if curr == "KES":
+        clean_phone = phone.strip().replace(" ", "")
+        if clean_phone.startswith("0"):
+            clean_phone = "+254" + clean_phone[1:]
+        elif not clean_phone.startswith("+"):
+            clean_phone = "+" + clean_phone
+
+        payload["mobile_money"] = {
             "phone": clean_phone,
             "provider": "mpesa"
         }
-    }
+    else:
+        payload["callback_url"] = "https://project-cench.onrender.com"
 
     headers = {
         "Authorization": f"Bearer {PAYSTACK_SECRET_KEY}",
@@ -95,24 +153,16 @@ async def initiate_paystack_stk(
     }
 
     async with httpx.AsyncClient() as client:
-        response = await client.post("https://api.paystack.co/charge", json=payload, headers=headers)
-        res_data = response.json()
+        res = await client.post("https://api.paystack.co/charge", json=payload, headers=headers)
+        data = res.json()
 
-    if response.status_code == 200 and res_data.get("status"):
+    if res.status_code == 200 and data.get("status"):
         return JSONResponse({
             "status": "success",
-            "message": "STK Push sent to your phone! Enter PIN to process.",
-            "reference": res_data["data"]["reference"]
+            "message": "Payment request initiated successfully! Check your phone prompt or card flow."
         })
     else:
         return JSONResponse({
             "status": "error",
-            "message": res_data.get("message", "Payment failed. Please check phone number.")
+            "message": data.get("message", "Payment gateway error. Please verify input details.")
         }, status_code=400)
-
-# ==========================================
-# 6. GOOGLE SEARCH CONSOLE VERIFICATION ROUTE
-# ==========================================
-@app.get("/googleb6c685259aeb3a9f.html", response_class=PlainTextResponse)
-def google_verification():
-    return "google-site-verification: googleb6c685259aeb3a9f.html"
